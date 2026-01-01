@@ -10,20 +10,20 @@ import uuid
 import json
 import logging
 
-from . import models, database, schemas
-from .services import ai_service, scheduler_service
+import models, database, schemas
+from services import ai_service, scheduler_service
 
 # 初始化应用
 app = FastAPI(title="My Weight Decay")
 
 # 挂载静态文件目录
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 模板配置
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory="templates")
 
 # 确保上传目录存在
-UPLOAD_DIR = "app/static/uploads"
+UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # 启动事件

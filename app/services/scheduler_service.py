@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from .. import models, database
+import models, database
 
 logger = logging.getLogger(__name__)
 

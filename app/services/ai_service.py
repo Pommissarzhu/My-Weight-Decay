@@ -4,7 +4,7 @@ import os
 import json
 import logging
 from typing import Optional
-from ..schemas import AIAnalysisResult
+from schemas import AIAnalysisResult
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)

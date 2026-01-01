@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # 数据库文件路径
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app/data/app.db"
+SQLALCHEMY_DATABASE_URL = "sqlite:////data/nutrition.db"
 
 # 创建数据库引擎
 # check_same_thread=False 是 SQLite 必须的配置，因为 FastAPI 是多线程的
