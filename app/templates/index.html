@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="appData()">
+    <!-- 仪表盘 -->
+    <div class="bg-white rounded-xl shadow-md p-6 mb-6 text-center">
+        <h2 class="text-lg text-gray-600 mb-2">今日热量摄入</h2>
+        <div class="text-5xl font-bold text-gray-800 mb-2">
+            <span x-text="todayCalories">0</span> <span class="text-xl font-normal text-gray-500">kcal</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-4">
+            <div class="bg-green-600 h-2.5 rounded-full" :style="'width: ' + progressPercentage + '%'"></div>
+        </div>
+        <p class="text-sm text-gray-500 mt-2">目标: 1800 kcal</p>
+    </div>
+
+    <!-- 上传区域 -->
+    <div class="flex justify-center mb-8">
+        <label
+            class="w-48 h-48 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex flex-col items-center justify-center text-white shadow-lg cursor-pointer hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+            <span class="text-5xl mb-2">📷</span>
+            <span class="font-bold">拍照 / 上传</span>
+            <input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden"
+                @change="uploadPhoto">
+
+            <!-- Loading Overlay -->
+            <div x-show="isLoading" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                style="display: none;">
+                <svg class="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+            </div>
+        </label>
+    </div>
+
+    <!-- 结果确认区域 -->
+    <div x-show="analysisResult" class="bg-white p-6 rounded-xl shadow-lg mb-6 animate-fade-in-up"
+        style="display: none;">
+        <h3 class="text-xl font-bold mb-4 border-b pb-2">🍱 AI 识别结果</h3>
+
+        <template x-for="(item, index) in analysisResult?.food_items" :key="index">
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <p class="font-bold text-lg" x-text="item.name"></p>
+                    <p class="text-xs text-gray-500" x-text="item.amount"></p>
+                </div>
+                <div class="text-right">
+                    <span class="text-green-600 font-bold" x-text="item.estimated_calories"></span> kcal
+                </div>
+            </div>
+        </template>
+
+        <div class="mt-4 pt-4 border-t flex justify-between items-center bg-gray-50 p-3 rounded">
+            <span class="font-bold text-gray-700">总热量</span>
+            <span class="text-xl font-bold text-green-700" x-text="analysisResult?.total_calories"></span>
+        </div>
+
+        <div class="mt-4 bg-yellow-50 p-3 rounded border border-yellow-100 text-sm text-yellow-800">
+            <strong>💡 建议:</strong> <span x-text="analysisResult?.suggestion"></span>
+        </div>
+
+        <button @click="confirmRecord"
+            class="w-full mt-4 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-md">
+            ✅ 确认并记录
+        </button>
+        <button @click="analysisResult = null" class="w-full mt-2 text-gray-500 py-2 text-sm hover:text-gray-700">
+            取消 / 重新拍摄
+        </button>
+    </div>
+
+    <!-- 历史记录 (示例) -->
+    <div class="space-y-4">
+        <h3 class="text-lg font-bold text-gray-700">🕒 最近记录</h3>
+        <template x-for="log in recentLogs" :key="log.id">
+            <div class="bg-white p-4 rounded-lg shadow-sm flex items-center gap-4">
+                <div class="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
+                    <!-- 实际项目中这里应该是 img 标签显示上传的图片 -->
+                    <img :src="log.image_path ? '/static/' + log.image_path : 'https://via.placeholder.com/64'"
+                        class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-800" x-text="log.food_name"></h4>
+                    <p class="text-xs text-gray-400" x-text="formatDate(log.created_at)"></p>
+                </div>
+                <div class="text-green-600 font-bold">
+                    <span x-text="log.calories"></span>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+    function appData() {
+        return {
+            isLoading: false,
+            analysisResult: null,
+            todayCalories: 0,
+            progressPercentage: 0,
+            recentLogs: [],
+
+            init() {
+                this.fetchLogs();
+            },
+
+            async fetchLogs() {
+                // 获取今日热量和最近记录
+                try {
+                    const res = await fetch('/api/stats');
+                    const data = await res.json();
+                    this.todayCalories = data.today_calories;
+                    this.recentLogs = data.recent_logs;
+                    // 假设目标 1800
+                    this.progressPercentage = Math.min((this.todayCalories / 1800) * 100, 100);
+                } catch (e) {
+                    console.error("获取数据失败", e);
+                }
+            },
+
+            async uploadPhoto(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                this.isLoading = true;
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/upload_food', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.error) {
+                        alert('识别失败: ' + data.error);
+                    } else {
+                        this.analysisResult = data;
+                        // 滚动到结果区域
+                        setTimeout(() => {
+                            document.querySelector('[x-show="analysisResult"]').scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('上传失败，请重试');
+                } finally {
+                    this.isLoading = false;
+                    // 清空 input 允许重复上传同一张
+                    e.target.value = '';
+                }
+            },
+
+            async confirmRecord() {
+                if (!this.analysisResult) return;
+
+                try {
+                    const response = await fetch('/confirm_food', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(this.analysisResult)
+                    });
+
+                    if (response.ok) {
+                        alert('记录成功！');
+                        this.analysisResult = null;
+                        this.fetchLogs(); // 刷新数据
+                    } else {
+                        alert('保存失败');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('网络错误');
+                }
+            },
+
+            formatDate(dateStr) {
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. Python 后端 (FastAPI)
+  backend:
+    build: ./app
+    container_name: diet_backend
+    restart: always
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./app:/app             # 代码映射，方便你直接修改代码重启即生效
+      - ./data:/data           # SQLite 数据库持久化路径
+    environment:
+      - DATABASE_URL=sqlite:////data/nutrition.db
+    networks:
+      - app-network
+
+  # 2. Web 服务器 (Nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: diet_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+      - ./app/static:/app/static  # 让 Nginx 直接处理图片，减轻 Python 压力
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # 3. SSL 证书工具 (Certbot)
+  certbot:
+    image: certbot/certbot
+    container_name: diet_certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # 默认不运行，需要申请证书时手动运行命令
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 6h & wait $${!}; done;'"
+
+networks:
+  app-network:
+    driver: bridge

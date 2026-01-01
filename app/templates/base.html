@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 饮食助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="//unpkg.com/alpinejs" defer></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    <nav class="bg-white shadow-sm p-4 text-center sticky top-0 z-50">
+        <h1 class="text-xl font-bold text-green-600">🌿 My Weight Decay</h1>
+    </nav>
+    
+    <main class="container mx-auto px-4 py-6 max-w-md">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center text-gray-400 text-sm py-6">
+        <p>&copy; 2024 Weight Decay AI</p>
+    </footer>
+</body>
+</html>
