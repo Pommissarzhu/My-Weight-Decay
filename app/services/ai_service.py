@@ -45,7 +45,7 @@ def analyze_food_image(image_path: str, user_info: str, description: Optional[st
     try:
         # 使用 qwen-vl-max 或者 qwen-vl-plus
         response = dashscope.MultiModalConversation.call(
-            model='qwen3-vl-plus',
+            model='qwen3-vl-plus-2025-12-19',
             messages=messages
         )
 

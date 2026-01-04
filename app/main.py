@@ -282,6 +282,36 @@ async def get_stats(request: Request, db: Session = Depends(database.get_db)):
         "recent_logs": recent_logs
     }
 
+
+@app.post("/update_profile")
+async def update_profile(
+    request: Request,
+    data: dict,
+    db: Session = Depends(database.get_db)
+):
+    """
+    更新用户信息
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"error": "请先登录"})
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return JSONResponse(status_code=404, content={"error": "用户不存在"})
+        
+    try:
+        if 'height' in data: user.height = float(data['height'])
+        if 'weight' in data: user.weight = float(data['weight'])
+        if 'age' in data: user.age = int(data['age'])
+        if 'gender' in data: user.gender = data['gender']
+        if 'target_weight' in data: user.target_weight = float(data['target_weight'])
+        
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 if __name__ == "__main__":
     import uvicorn
     # allow remote access
