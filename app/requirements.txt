@@ -10,3 +10,4 @@ requests
 bcrypt==3.2.2
 passlib[bcrypt]
 itsdangerous
+python-dotenv

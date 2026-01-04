@@ -44,12 +44,23 @@ def analyze_food_image(image_path: str, user_info: str) -> Optional[dict]:
     try:
         # 使用 qwen-vl-max 或者 qwen-vl-plus
         response = dashscope.MultiModalConversation.call(
-            model='qwen-vl-max',
+            model='qwen3-vl-plus',
             messages=messages
         )
 
         if response.status_code == HTTPStatus.OK:
             content = response.output.choices[0].message.content
+            # 处理 content 为列表的情况 (Multimodal API 可能返回 list)
+            if isinstance(content, list):
+                # 提取列表中的文本部分
+                text_content = ""
+                for item in content:
+                    if isinstance(item, dict) and 'text' in item:
+                        text_content += item['text']
+                    elif isinstance(item, str):
+                        text_content += item
+                content = text_content
+
             # 清理可能的 markdown 标记
             content = content.replace("```json", "").replace("```", "").strip()
             try:

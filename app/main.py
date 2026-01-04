@@ -11,6 +11,9 @@ import os
 import uuid
 import json
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import models, database, schemas
 from services import ai_service, scheduler_service, auth_service
