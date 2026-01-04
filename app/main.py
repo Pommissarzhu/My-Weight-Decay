@@ -156,7 +156,7 @@ async def forgot_password(request: Request, email: str = Form(...), new_password
 
 
 @app.post("/upload_food")
-async def upload_food(request: Request, file: UploadFile = File(...), db: Session = Depends(database.get_db)):
+async def upload_food(request: Request, file: UploadFile = File(...), description: str = Form(None), db: Session = Depends(database.get_db)):
     """
     处理图片上传并调用 AI 分析
     """
@@ -197,7 +197,7 @@ async def upload_food(request: Request, file: UploadFile = File(...), db: Sessio
                 "image_path": relative_path # 把图片路径带回给前端暂存
             }
 
-        result = ai_service.analyze_food_image(file_path, user_info)
+        result = ai_service.analyze_food_image(file_path, user_info, description)
         
         if result:
             result['image_path'] = relative_path

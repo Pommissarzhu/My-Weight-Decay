@@ -13,13 +13,14 @@ logger = logging.getLogger(__name__)
 # 请确保环境变量 DASHSCOPE_API_KEY 已设置
 # dashscope.api_key = os.getenv("DASHSCOPE_API_KEY") 
 
-def analyze_food_image(image_path: str, user_info: str) -> Optional[dict]:
+def analyze_food_image(image_path: str, user_info: str, description: Optional[str] = None) -> Optional[dict]:
     """
     调用通义千问-VL 分析食物图片
     """
     prompt = f"""
     我上传了一张食物照片。请作为专业的营养师进行分析。
     用户信息：{user_info}
+    用户备注：{description if description else "无"}
     请分析图片中的食物，并以纯 JSON 格式返回，不要包含Markdown标记(`json ... `)。
     JSON 格式必须严格遵守以下结构：
     {{
