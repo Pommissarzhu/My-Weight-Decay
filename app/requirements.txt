@@ -7,3 +7,6 @@ dashscope
 apscheduler
 pydantic-settings
 requests
+bcrypt==3.2.2
+passlib[bcrypt]
+itsdangerous

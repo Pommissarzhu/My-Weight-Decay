@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, List, Dict
 from datetime import datetime
 
@@ -44,7 +44,19 @@ class UserBase(BaseModel):
     gender: str
     target_weight: float
 
-class UserCreate(UserBase):
+class UserRegister(UserBase):
+    password: str
+
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) > 14:
+            raise ValueError('Password must be at most 14 characters')
+        if not v.isascii():
+            raise ValueError('Password must be ASCII characters only')
+        return v
+
+class UserLogin(BaseModel):
+    email: str
     password: str
 
 class User(UserBase):

@@ -1,7 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, Form, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
+
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 import shutil
@@ -11,10 +13,14 @@ import json
 import logging
 
 import models, database, schemas
-from services import ai_service, scheduler_service
+from services import ai_service, scheduler_service, auth_service
 
 # 初始化应用
 app = FastAPI(title="My Weight Decay")
+
+# 添加 Session 中间件
+# 注意：在生产环境中 secret_key 应该从环境变量获取
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-super-secret-key"))
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -39,6 +45,7 @@ def startup_event():
     if not db.query(models.User).filter(models.User.email == "demo@example.com").first():
         demo_user = models.User(
             email="demo@example.com",
+            password_hash=auth_service.get_password_hash("demo123"),
             height=174,
             weight=87,
             age=23,
@@ -51,15 +58,102 @@ def startup_event():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, db: Session = Depends(database.get_db)):
     """
-    首页路由
+    首页路由 - 需要登录
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        request.session.clear()
+        return RedirectResponse(url="/login")
+        
+    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/login")
+async def login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user or not auth_service.verify_password(password, user.password_hash):
+        return templates.TemplateResponse("login.html", {"request": request, "error": "邮箱或密码错误"})
+    
+    request.session["user_id"] = user.id
+    return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    return templates.TemplateResponse("register.html", {"request": request})
+
+@app.post("/register")
+async def register(request: Request, 
+                   email: str = Form(...), 
+                   password: str = Form(...),
+                   height: float = Form(...), 
+                   weight: float = Form(...), 
+                   age: int = Form(...),
+                   gender: str = Form(...), 
+                   target_weight: float = Form(...),
+                   db: Session = Depends(database.get_db)):
+    try:
+        if len(password) > 14 or not password.isascii():
+             return templates.TemplateResponse("register.html", {"request": request, "error": "密码必须是ASCII字符且不超过14位"})
+
+        if db.query(models.User).filter(models.User.email == email).first():
+            return templates.TemplateResponse("register.html", {"request": request, "error": "邮箱已被注册"})
+        
+        hashed_pw = auth_service.get_password_hash(password)
+        # JSON string for preferences
+        default_preferences = json.dumps({"daily_email": True})
+        
+        new_user = models.User(
+            email=email, 
+            password_hash=hashed_pw, 
+            height=height, 
+            weight=weight,
+            age=age, 
+            gender=gender, 
+            target_weight=target_weight,
+            preferences=default_preferences
+        )
+        db.add(new_user)
+        db.commit()
+        request.session["user_id"] = new_user.id
+        return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    except Exception as e:
+        return templates.TemplateResponse("register.html", {"request": request, "error": str(e)})
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login")
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse("forgot_password.html", {"request": request})
+
+@app.post("/forgot-password")
+async def forgot_password(request: Request, email: str = Form(...), new_password: str = Form(...), db: Session = Depends(database.get_db)):
+     user = db.query(models.User).filter(models.User.email == email).first()
+     if user:
+         if len(new_password) > 14 or not new_password.isascii():
+              return templates.TemplateResponse("forgot_password.html", {"request": request, "error": "新密码格式错误"})
+         user.password_hash = auth_service.get_password_hash(new_password)
+         db.commit()
+         return templates.TemplateResponse("login.html", {"request": request, "message": "密码重置成功，请登录"})
+     
+     return templates.TemplateResponse("forgot_password.html", {"request": request, "error": "邮箱未找到"})
+
 
 
 @app.post("/upload_food")
-async def upload_food(file: UploadFile = File(...), db: Session = Depends(database.get_db)):
+async def upload_food(request: Request, file: UploadFile = File(...), db: Session = Depends(database.get_db)):
     """
     处理图片上传并调用 AI 分析
     """
@@ -75,9 +169,15 @@ async def upload_food(file: UploadFile = File(...), db: Session = Depends(databa
         # 相对路径用于前端访问
         relative_path = f"uploads/{file_name}"
         
-        # 2. 调用 AI 分析 (这里需要真实的用户信息，暂时用 hardcode)
-        # 实际项目中应该从 Session 或 Token 获取当前用户
-        user = db.query(models.User).first()
+        # 2. 调用 AI 分析 
+        user_id = request.session.get("user_id")
+        if not user_id:
+             return JSONResponse(status_code=401, content={"error": "请先登录"})
+        
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+             return JSONResponse(status_code=401, content={"error": "用户不存在"})
+
         user_info = f"{user.gender}, {user.age}岁, {user.height}cm, {user.weight}kg, 正在减重"
         
         # 为了演示，如果没配置 API Key，返回 Mock 数据
@@ -108,13 +208,16 @@ async def upload_food(file: UploadFile = File(...), db: Session = Depends(databa
 
 
 @app.post("/confirm_food")
-async def confirm_food(data: dict, db: Session = Depends(database.get_db)):
+async def confirm_food(request: Request, data: dict, db: Session = Depends(database.get_db)):
     """
     用户确认后将记录写入数据库
     """
     try:
-        # 实际项目中这里需要校验用户身份
-        user = db.query(models.User).first()
+        user_id = request.session.get("user_id")
+        if not user_id:
+             return JSONResponse(status_code=401, content={"error": "请先登录"})
+
+        user = db.query(models.User).filter(models.User.id == user_id).first()
         
         # 将前端传回的 JSON 数据转换为数据库模型
         # 注意：这里需要根据 ai_service 返回的结构和 models.py 对应
@@ -144,11 +247,14 @@ async def confirm_food(data: dict, db: Session = Depends(database.get_db)):
 
 
 @app.get("/api/stats")
-async def get_stats(db: Session = Depends(database.get_db)):
+async def get_stats(request: Request, db: Session = Depends(database.get_db)):
     """
     获取今日统计数据
     """
-    user = db.query(models.User).first()
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"today_calories": 0, "recent_logs": []}
+    user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         return {"today_calories": 0, "recent_logs": []}
     
