@@ -21,7 +21,7 @@ def analyze_food_image(image_path: str, user_info: str, description: Optional[st
     我上传了一张食物照片。请作为专业的营养师进行分析。
     用户信息：{user_info}
     用户备注：{description if description else "无"}
-    请分析图片中的食物，并以纯 JSON 格式返回，不要包含Markdown标记(`json ... `)。
+    请分析图片中的食物，可以参考用户备注但是不要被用户误导，相信你自己的判断。分析内容以纯 JSON 格式返回，不要包含Markdown标记(`json ... `)。
     JSON 格式必须严格遵守以下结构：
     {{
     "food_items": [{{"name": "菜名", "estimated_calories": 整数(千卡), "amount": "估计分量"}}],
