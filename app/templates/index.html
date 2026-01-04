@@ -154,17 +154,24 @@
     <div x-show="activeTab === 'history'" class="space-y-4 pb-20">
         <h3 class="text-lg font-bold text-gray-700 mb-4">🕒 历史记录</h3>
         <template x-for="log in recentLogs" :key="log.id">
-            <div class="bg-white p-4 rounded-lg shadow-sm flex items-center gap-4">
-                <div class="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
-                    <img :src="log.image_path ? '/static/' + log.image_path : 'https://via.placeholder.com/64'"
-                        class="w-full h-full object-cover">
+            <div class="bg-white p-4 rounded-lg shadow-sm flex flex-col gap-3">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-gray-200 rounded-md overflow-hidden flex-shrink-0">
+                        <img :src="log.image_path ? '/static/' + log.image_path : 'https://via.placeholder.com/64'"
+                            class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-gray-800" x-text="log.food_name"></h4>
+                        <p class="text-xs text-gray-400" x-text="formatDate(log.created_at)"></p>
+                    </div>
+                    <div class="text-green-600 font-bold">
+                        <span x-text="log.calories"></span> kcal
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <h4 class="font-bold text-gray-800" x-text="log.food_name"></h4>
-                    <p class="text-xs text-gray-400" x-text="formatDate(log.created_at)"></p>
-                </div>
-                <div class="text-green-600 font-bold">
-                    <span x-text="log.calories"></span> kcal
+
+                <div x-show="log.advice"
+                    class="bg-yellow-50 p-2 rounded border border-yellow-100 text-sm text-yellow-800">
+                    <strong>💡 建议:</strong> <span x-text="log.advice"></span>
                 </div>
             </div>
         </template>
