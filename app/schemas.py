@@ -43,6 +43,8 @@ class UserBase(BaseModel):
     age: int
     gender: str
     target_weight: float
+    nickname: Optional[str] = None
+    avatar: Optional[str] = None
 
 class UserRegister(UserBase):
     password: str

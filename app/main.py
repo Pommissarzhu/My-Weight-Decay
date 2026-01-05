@@ -35,6 +35,9 @@ templates = Jinja2Templates(directory="templates")
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+AVATAR_DIR = "static/avatars"
+os.makedirs(AVATAR_DIR, exist_ok=True)
+
 # 启动事件
 @app.on_event("startup")
 def startup_event():
@@ -54,7 +57,9 @@ def startup_event():
             age=23,
             gender="Male",
             target_weight=75,
-            preferences='{"daily_email": true}'
+            preferences='{"daily_email": true}',
+            nickname = "Demo User",
+            avatar = "/static/avatars/default.png" # 假设有个默认头像，或者留空
         )
         db.add(demo_user)
         db.commit()
@@ -283,6 +288,29 @@ async def get_stats(request: Request, db: Session = Depends(database.get_db)):
     }
 
 
+@app.post("/upload_avatar")
+async def upload_avatar(request: Request, file: UploadFile = File(...), db: Session = Depends(database.get_db)):
+    """
+    上传头像
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"error": "请先登录"})
+
+    try:
+        file_extension = file.filename.split(".")[-1]
+        file_name = f"avatar_{user_id}_{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(AVATAR_DIR, file_name)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        relative_path = f"/static/avatars/{file_name}"
+        return {"status": "success", "avatar_path": relative_path}
+    except Exception as e:
+         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @app.post("/update_profile")
 async def update_profile(
     request: Request,
@@ -306,6 +334,8 @@ async def update_profile(
         if 'age' in data: user.age = int(data['age'])
         if 'gender' in data: user.gender = data['gender']
         if 'target_weight' in data: user.target_weight = float(data['target_weight'])
+        if 'nickname' in data: user.nickname = data['nickname']
+        if 'avatar' in data: user.avatar = data['avatar']
         
         db.commit()
         return {"status": "success"}

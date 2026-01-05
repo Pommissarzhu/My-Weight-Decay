@@ -16,6 +16,8 @@ class User(Base):
     gender = Column(String)
     target_weight = Column(Float)
     preferences = Column(Text)  # 存储 JSON 字符串
+    nickname = Column(String) # 用户昵称
+    avatar = Column(String) # 头像路径
 
     food_logs = relationship("FoodLog", back_populates="user")
 
