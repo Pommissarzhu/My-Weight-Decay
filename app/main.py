@@ -12,6 +12,8 @@ import uuid
 import json
 import logging
 from dotenv import load_dotenv
+from PIL import Image
+import io
 
 load_dotenv()
 
@@ -167,13 +169,24 @@ async def upload_food(request: Request, file: UploadFile = File(...), descriptio
     处理图片上传并调用 AI 分析
     """
     try:
-        # 1. 保存文件
-        file_extension = file.filename.split(".")[-1]
-        file_name = f"{uuid.uuid4()}.{file_extension}"
+        # 1. 保存文件 (压缩处理)
+        content = await file.read()
+        image = Image.open(io.BytesIO(content))
+
+        # Convert to RGB if necessary
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Resize max dimension to 1280
+        max_dim = 1280
+        if max(image.size) > max_dim:
+            image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        # Save as JPG
+        file_name = f"{uuid.uuid4()}.jpg"
         file_path = os.path.join(UPLOAD_DIR, file_name)
         
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        image.save(file_path, "JPEG", quality=85, optimize=True)
             
         # 相对路径用于前端访问
         relative_path = f"uploads/{file_name}"
@@ -299,12 +312,22 @@ async def upload_avatar(request: Request, file: UploadFile = File(...), db: Sess
         return JSONResponse(status_code=401, content={"error": "请先登录"})
 
     try:
-        file_extension = file.filename.split(".")[-1]
-        file_name = f"avatar_{user_id}_{uuid.uuid4()}.{file_extension}"
+        # Compress avatar
+        content = await file.read()
+        image = Image.open(io.BytesIO(content))
+
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Avatar max 512
+        max_dim = 512
+        if max(image.size) > max_dim:
+            image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        file_name = f"avatar_{user_id}_{uuid.uuid4()}.jpg"
         file_path = os.path.join(AVATAR_DIR, file_name)
         
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        image.save(file_path, "JPEG", quality=85, optimize=True)
             
         relative_path = f"/static/avatars/{file_name}"
         return {"status": "success", "avatar_path": relative_path}
