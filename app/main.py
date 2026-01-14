@@ -25,11 +25,9 @@ app = FastAPI(title="My Weight Decay")
 # 注意：在生产环境中 secret_key 应该从环境变量获取
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-super-secret-key"))
 
-# 挂载静态文件目录
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # 模板配置
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["icp_number"] = os.getenv("ICP_NUMBER")
 
 # 确保上传目录存在
 UPLOAD_DIR = "static/uploads"
@@ -37,6 +35,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 AVATAR_DIR = "static/avatars"
 os.makedirs(AVATAR_DIR, exist_ok=True)
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 启动事件
 @app.on_event("startup")
